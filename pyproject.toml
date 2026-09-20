@@ -1,0 +1,15 @@
+[project]
+name = "legal-contract-analyzer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "groq>=1.0.0",
+    "langgraph>=0.6.11",
+    "pydantic>=2.13.5",
+    "pypdf>=6.19.0",
+    "python-dotenv>=1.2.1",
+    "qdrant-client>=1.16.1",
+    "sentence-transformers>=5.1.2",
+]

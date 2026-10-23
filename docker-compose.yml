@@ -1,0 +1,14 @@
+# Optional: Qdrant vector database for smarter "Ask a question" search.
+# LexiGuard works without it (it falls back to keyword search).
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    ports:
+      # Bound to this computer only: Qdrant has no password by default.
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+volumes:
+  qdrant_storage:

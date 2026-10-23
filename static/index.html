@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LexiGuard Local</title>
+<style>
+  :root {
+    --bg: #f2f4f7; --sheet: #ffffff; --ink: #1d2433; --muted: #5d6779; --rule: #d6dbe3; --rule-soft: #e8ebf0;
+    --navy: #22304a; --navy-soft: #e6ebf5;
+    --high: #c2261f; --high-bg: #fdeceb;
+    --med: #8a5a00; --med-bg: #fff3d6;
+    --low: #2457c5; --low-bg: #e8effc;
+    --info: #5d6779; --info-bg: #edf0f4;
+    --ok: #17724a; --ok-bg: #e5f5ec;
+    --marker: #ffe27a;
+    --serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+    --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
+  h1, h2, h3, p { margin: 0; }
+  button, select, textarea, input { font: inherit; color: inherit; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .hidden { display: none !important; }
+  :focus-visible { outline: 3px solid #7aa2f7; outline-offset: 2px; }
+
+  /* ---------- top bar ---------- */
+  .topbar { background: var(--navy); color: #fff; }
+  .topbar-inner { max-width: 1240px; margin: 0 auto; padding: 14px 20px; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .brand { font: 700 23px/1 var(--serif); letter-spacing: .2px; }
+  .brand small { font: 400 14px var(--sans); color: #b9c6e0; margin-left: 10px; }
+  .privacy { font-size: 13px; color: #cfd9ee; }
+
+  /* ---------- layout ---------- */
+  .shell { max-width: 1240px; margin: 0 auto; padding: 22px 20px 60px; display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 22px; align-items: start; }
+  .rail { display: grid; gap: 16px; position: sticky; top: 14px; max-height: calc(100vh - 28px); overflow: auto; padding-right: 2px; }
+  .card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; }
+  .card h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+
+  /* ---------- upload ---------- */
+  .drop { display: block; border: 1.5px dashed #9aa6ba; border-radius: 8px; padding: 18px 12px; text-align: center; cursor: pointer; background: #fafbfd; }
+  .drop:hover, .drop.drag { border-color: var(--navy); background: var(--navy-soft); }
+  .drop:focus-within { outline: 3px solid #7aa2f7; outline-offset: 2px; }
+  .drop strong { display: block; }
+  .drop span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .picked { margin-top: 10px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .field { margin-top: 12px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .field select { width: 100%; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: #fff; }
+  .field .help { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--navy); background: var(--navy); color: #fff; padding: 9px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .btn:hover:not(:disabled) { background: #2d3f60; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.quiet { background: #fff; color: var(--navy); border-color: #b4bdce; }
+  .btn.quiet:hover:not(:disabled) { background: var(--navy-soft); }
+  .btn.danger { background: #fff; color: var(--high); border-color: #e3b1ae; }
+  .btn.block { width: 100%; margin-top: 14px; }
+  .btn.small { padding: 5px 10px; font-size: 13px; }
+  .error-text { color: var(--high); font-size: 13px; margin-top: 10px; white-space: pre-wrap; }
+
+  /* ---------- system status ---------- */
+  .status-row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 5px 0; }
+  .status-row .state { font-weight: 600; text-align: right; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #aab2c0; margin-right: 7px; }
+  .dot.ok { background: #1f9d63; } .dot.bad { background: #d3382f; } .dot.warn { background: #d99a1f; }
+  .fix { font-size: 12px; color: var(--muted); margin: 0 0 6px 15px; }
+  .fix code { background: var(--info-bg); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  /* ---------- history ---------- */
+  .history { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .history li { display: flex; align-items: stretch; gap: 4px; }
+  .history .open { flex: 1; min-width: 0; text-align: left; background: #fff; border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; cursor: pointer; }
+  .history .open:hover { background: var(--navy-soft); }
+  .history .open[aria-current="true"] { border-color: var(--navy); background: var(--navy-soft); }
+  .history .name { display: block; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history .meta { display: block; font-size: 12px; color: var(--muted); }
+  .history .del { border: 1px solid var(--rule); background: #fff; border-radius: 6px; width: 32px; cursor: pointer; color: var(--muted); font-size: 16px; line-height: 1; }
+  .history .del:hover { color: var(--high); border-color: #e3b1ae; }
+  .empty-note { font-size: 13px; color: var(--muted); }
+
+  /* ---------- sheet (main) ---------- */
+  .sheet { background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; min-height: 520px; overflow: hidden; }
+  .sheet-head { padding: 20px 26px 16px; border-bottom: 1px solid var(--rule); }
+  .doc-title { font: 700 25px/1.25 var(--serif); overflow-wrap: anywhere; }
+  .doc-sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .doc-sub span + span::before { content: ""; display: inline-block; width: 1px; height: 12px; background: var(--rule); margin: 0 10px; vertical-align: -1px; }
+  .badge { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; background: var(--info-bg); color: var(--info); margin-left: 8px; vertical-align: 3px; }
+  .badge.completed { background: var(--ok-bg); color: var(--ok); } .badge.failed, .badge.cancelled { background: var(--high-bg); color: var(--high); }
+  .progress { margin-top: 16px; }
+  .progress-line { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .bar { height: 8px; background: var(--rule-soft); border-radius: 99px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--navy); transition: width .4s ease; }
+  .head-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .tabs { display: flex; gap: 2px; padding: 0 20px; border-bottom: 1px solid var(--rule); background: #fafbfc; }
+  .tab { border: 0; background: transparent; padding: 11px 14px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+  .tab[aria-selected="true"] { color: var(--navy); border-bottom-color: var(--navy); }
+  .pane { padding: 22px 26px 30px; }
+
+  .placeholder { padding: 56px 30px 64px; max-width: 640px; margin: 0 auto; }
+  .placeholder h2 { font: 700 22px/1.3 var(--serif); margin-bottom: 10px; }
+  .placeholder p { color: var(--muted); margin-bottom: 10px; }
+  .sample { margin: 20px 0 6px; padding: 14px 16px; background: #fafbfd; border: 1px solid var(--rule-soft); border-radius: 6px; font: 15px/1.7 var(--serif); }
+  .sample mark { background: var(--marker); padding: 1px 2px; }
+  .sample-note { font-size: 13px; color: var(--muted); }
+
+  .notice { border-radius: 6px; padding: 11px 14px; font-size: 14px; margin-bottom: 16px; }
+  .notice.warn { background: var(--med-bg); color: #6b4500; }
+  .notice.fail { background: var(--high-bg); color: #8f1b16; }
+  .notice.info { background: var(--info-bg); color: #3f4859; }
+  .notice p + p { margin-top: 4px; }
+
+  /* ---------- report content ---------- */
+  .block + .block { margin-top: 28px; }
+  .block h2 { font: 700 19px/1.3 var(--serif); margin-bottom: 10px; }
+  .summary { font: 16.5px/1.7 var(--serif); max-width: 74ch; }
+  .meter-wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; margin-bottom: 26px; }
+  .meter-title { font-weight: 600; margin-bottom: 8px; }
+  .meter-title b { font: 700 22px var(--serif); margin: 0 4px 0 6px; }
+  .meter { position: relative; height: 12px; border-radius: 99px; background: linear-gradient(90deg, #cfe9da 0 25%, #f6e8b9 25% 50%, #f6cfa3 50% 75%, #f2b8b3 75% 100%); }
+  .meter i { position: absolute; top: -5px; width: 4px; height: 22px; background: var(--navy); border-radius: 2px; transform: translateX(-2px); }
+  .meter-scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .counts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .count { border-radius: 6px; padding: 7px 12px; min-width: 74px; text-align: center; font-size: 12px; }
+  .count b { display: block; font: 700 20px/1.2 var(--serif); }
+  .count.high { background: var(--high-bg); color: var(--high); } .count.medium { background: var(--med-bg); color: var(--med); }
+  .count.low { background: var(--low-bg); color: var(--low); } .count.info { background: var(--info-bg); color: var(--info); }
+  .note-small { font-size: 12.5px; color: var(--muted); margin-top: 8px; max-width: 74ch; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 12px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--rule); background: #fff; border-radius: 99px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .search { flex: 1; min-width: 160px; padding: 7px 10px; border: 1px solid var(--rule); border-radius: 6px; }
+
+  .finding { border: 1px solid var(--rule); border-left: 5px solid var(--info); border-radius: 6px; margin: 8px 0; background: #fff; }
+  .finding.high { border-left-color: var(--high); } .finding.medium { border-left-color: #d99a1f; } .finding.low { border-left-color: var(--low); }
+  .finding summary { list-style: none; cursor: pointer; padding: 11px 14px; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+  .finding summary::-webkit-details-marker { display: none; }
+  .finding summary:hover { background: #fafbfd; }
+  .f-title { font-weight: 700; }
+  .f-meta { font-size: 13px; color: var(--muted); }
+  .f-meta span + span::before { content: ""; display: inline-block; width: 1px; height: 11px; background: var(--rule); margin: 0 8px; vertical-align: -1px; }
+  .level { border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .level.high { background: var(--high-bg); color: var(--high); } .level.medium { background: var(--med-bg); color: var(--med); }
+  .level.low { background: var(--low-bg); color: var(--low); } .level.info { background: var(--info-bg); color: var(--info); }
+  .f-body { padding: 2px 16px 16px; border-top: 1px solid var(--rule-soft); }
+  .f-body h3 { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 4px; }
+  .quote { margin: 0; font: 15.5px/1.75 var(--serif); }
+  .quote span { background: linear-gradient(transparent 8%, var(--marker) 8% 92%, transparent 92%); padding: 0 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .f-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  .list { margin: 0; padding-left: 20px; } .list li { margin: 6px 0; }
+  .more { margin-top: 10px; }
+
+  /* ---------- ask tab ---------- */
+  .ask-form textarea { width: 100%; min-height: 76px; resize: vertical; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 6px; }
+  .ask-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+  .qa { margin-top: 18px; border-top: 1px solid var(--rule-soft); padding-top: 14px; }
+  .qa .q { font-weight: 700; }
+  .qa .a { margin-top: 6px; white-space: pre-wrap; font: 16px/1.7 var(--serif); max-width: 74ch; }
+  .qa details { margin-top: 8px; font-size: 13px; }
+  .qa summary { cursor: pointer; color: var(--navy); font-weight: 600; }
+  .src { margin: 8px 0 0; padding: 8px 12px; background: #fafbfd; border-left: 3px solid #b4bdce; }
+  .src b { display: block; font-size: 12px; color: var(--muted); }
+  .disclaimer { margin-top: 30px; padding: 12px 14px; background: var(--med-bg); color: #6b4500; border-radius: 6px; font-size: 13px; }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; } .rail { position: static; max-height: none; }
+    .meter-wrap { grid-template-columns: 1fr; } .f-cols { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) { .pane, .sheet-head { padding-left: 16px; padding-right: 16px; } .doc-title { font-size: 21px; } }
+  @media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+  @media print {
+    body { background: #fff; } .topbar, .rail, .head-actions, .tabs, .toolbar, .progress, #askPane, .no-print { display: none !important; }
+    .shell { display: block; padding: 0; max-width: none; } .sheet { border: 0; } #reviewPane { display: block !important; }
+    .finding { break-inside: avoid; } .sheet-head, .pane { padding-left: 0; padding-right: 0; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">LexiGuard<small>Local contract review</small></div>
+    <div class="privacy">Runs on this computer. Your contracts are not sent anywhere.</div>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="rail" aria-label="Controls">
+    <section class="card" aria-labelledby="uploadHeading">
+      <h2 id="uploadHeading">Review a contract</h2>
+      <label class="drop" id="drop">
+        <input id="file" class="sr-only" type="file" accept=".pdf,.docx,.txt">
+        <strong>Choose a file or drop it here</strong>
+        <span>PDF, Word (.docx) or text. No page limit.</span>
+      </label>
+      <div class="picked" id="picked">No file chosen.</div>
+      <div class="field">
+        <label for="perspective">Review it from the side of</label>
+        <select id="perspective">
+          <option value="neutral">A neutral reviewer</option>
+          <option value="customer">The customer or buyer</option>
+          <option value="provider">The provider or seller</option>
+        </select>
+      </div>
+      <div class="field hidden" id="modelField">
+        <label for="model">AI model</label>
+        <select id="model"></select>
+        <div class="help">Larger models are slower but usually more accurate.</div>
+      </div>
+      <button class="btn block" id="uploadBtn" disabled>Analyze contract</button>
+      <div class="error-text" id="uploadError" role="alert"></div>
+    </section>
+
+    <section class="card" aria-labelledby="historyHeading">
+      <h2 id="historyHeading">Your reviews</h2>
+      <ul class="history" id="history"></ul>
+      <p class="empty-note" id="historyEmpty">Finished reviews are saved on this computer and appear here.</p>
+    </section>
+
+    <section class="card" aria-labelledby="systemHeading">
+      <h2 id="systemHeading">System check</h2>
+      <div id="system"><p class="empty-note">Checking...</p></div>
+      <button class="btn quiet small" id="refreshHealth" style="margin-top:8px">Check again</button>
+    </section>
+  </aside>
+
+  <main>
+    <div class="sheet" id="sheet">
+      <div class="sheet-head">
+        <div class="doc-title"><span id="docTitle">No contract open</span><span class="badge hidden" id="badge"></span></div>
+        <div class="doc-sub" id="docSub">Choose a contract on the left to begin.</div>
+        <div class="progress hidden" id="progress" aria-live="polite">
+          <div class="progress-line"><span id="stage">Starting</span><span id="percent">0%</span></div>
+          <div class="bar"><i id="barFill"></i></div>
+        </div>
+        <div class="head-actions hidden" id="actions"></div>
+      </div>
+
+      <div class="tabs hidden" id="tabs" role="tablist">
+        <button class="tab" role="tab" id="tabReview" aria-selected="true" aria-controls="reviewPane">Review</button>
+        <button class="tab" role="tab" id="tabAsk" aria-selected="false" aria-controls="askPane">Ask a question</button>
+      </div>
+
+      <div class="pane" id="placeholder">
+        <div class="placeholder">
+          <h2>Find the clauses that deserve a second look</h2>
+          <p>Upload a contract and LexiGuard reads it in parts, quotes the exact wording behind each concern, and explains why it may matter and what to ask for.</p>
+          <div class="sample" aria-hidden="true">The Supplier shall <mark>indemnify the Customer against all claims of any kind whatsoever</mark>, and this Agreement will renew each year unless cancelled.</div>
+          <p class="sample-note">Every quote in a report is checked against your document, so invented wording is thrown away.</p>
+          <p>Long contracts take time on a local model. Keep this window open while it works.</p>
+        </div>
+      </div>
+      <div class="pane hidden" id="reviewPane" role="tabpanel" aria-labelledby="tabReview"></div>
+      <div class="pane hidden" id="askPane" role="tabpanel" aria-labelledby="tabAsk"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const state = { id: null, report: null, status: null, poll: null, health: null, file: null, filter: "All", query: "", answers: [], asking: false, lastRender: 0 };
+const LEVELS = ["High", "Medium", "Low", "Info"];
+
+/* ---------- helpers ---------- */
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+async function api(path, options) {
+  let response;
+  try { response = await fetch(path, options); }
+  catch (e) { throw new Error("Cannot reach the LexiGuard app. Is the PowerShell window still running?"); }
+  let data = null;
+  try { data = await response.json(); } catch (e) { /* non-JSON body */ }
+  if (!response.ok) {
+    const detail = data && data.detail;
+    const message = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((d) => d.msg).join("; ") : "Request failed (" + response.status + ").";
+    const error = new Error(message); error.status = response.status; throw error;
+  }
+  return data;
+}
+function formatSize(bytes) { return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(bytes / 1024)) + " KB"; }
+function formatDate(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }); }
+function pageLabel(f, kind) {
+  const approx = kind === "approx" ? "about " : "";
+  return f.page_start === f.page_end ? approx + "page " + f.page_start : approx + "pages " + f.page_start + " to " + f.page_end;
+}
+
+/* ---------- system check ---------- */
+async function refreshHealth() {
+  const box = $("system");
+  try {
+    const h = await api("/api/health");
+    state.health = h;
+    const rows = [];
+    const o = h.ollama;
+    rows.push(row(o.connected && o.model_available ? "ok" : "bad", "AI model (" + o.model + ")", o.connected ? (o.model_available ? "Ready" : "Not installed") : "Not running",
+      !o.connected ? "Start the Ollama app, then check again." : !o.model_available ? "Run <code>ollama pull " + esc(o.model) + "</code> in PowerShell." : ""));
+    rows.push(row(h.embedding_model.available ? "ok" : "warn", "Search model", h.embedding_model.available ? "Ready" : "Optional",
+      h.embedding_model.available ? "" : "Run <code>ollama pull " + esc(h.embedding_model.name) + "</code> for smarter question answering."));
+    rows.push(row(!h.qdrant.enabled ? "warn" : h.qdrant.connected ? "ok" : "warn", "Qdrant database", !h.qdrant.enabled ? "Turned off" : h.qdrant.connected ? "Connected" : "Optional",
+      h.qdrant.enabled && !h.qdrant.connected ? "Start Docker Desktop for semantic search. Reviews work without it." : ""));
+    rows.push(row(h.ocr.available ? "ok" : "warn", "Scanned PDFs (OCR)", h.ocr.available ? "Available" : "Not installed", ""));
+    box.innerHTML = rows.join("");
+    populateModels(h);
+  } catch (e) {
+    box.innerHTML = row("bad", "LexiGuard app", "Not reachable", "Start it with run.bat or run.ps1.");
+  }
+}
+function row(kind, label, text, fix) {
+  return '<div class="status-row"><span><i class="dot ' + kind + '"></i>' + esc(label) + '</span><span class="state">' + esc(text) + "</span></div>" + (fix ? '<p class="fix">' + fix + "</p>" : "");
+}
+function populateModels(h) {
+  const models = h.ollama.installed_models || [];
+  const select = $("model");
+  const previous = select.value;
+  if (models.length > 1) {
+    select.innerHTML = models.map((m) => '<option value="' + esc(m) + '">' + esc(m) + "</option>").join("");
+    const preferred = models.find((m) => m === h.ollama.model || m.split(":")[0] === h.ollama.model);
+    select.value = models.includes(previous) ? previous : (preferred || models[0]);
+    $("modelField").classList.remove("hidden");
+  } else { $("modelField").classList.add("hidden"); select.innerHTML = ""; }
+}
+
+/* ---------- history ---------- */
+async function loadHistory() {
+  try {
+    const items = await api("/api/contracts");
+    const list = $("history");
+    $("historyEmpty").classList.toggle("hidden", items.length > 0);
+    list.innerHTML = items.map((c) => {
+      const label = c.status === "completed" ? (c.findings_count ?? 0) + " findings" : c.status === "failed" ? "Failed" : c.status === "cancelled" ? "Cancelled" : "In progress";
+      return '<li><button class="open" data-id="' + esc(c.id) + '"' + (c.id === state.id ? ' aria-current="true"' : "") + '><span class="name">' + esc(c.filename) + '</span><span class="meta">' + esc(label) + " - " + esc(formatDate(c.created_at)) + '</span></button>' +
+             '<button class="del" data-del="' + esc(c.id) + '" aria-label="Delete ' + esc(c.filename) + '" title="Delete this review">&times;</button></li>';
+    }).join("");
+  } catch (e) { /* history is a convenience; ignore */ }
+}
+$("history").addEventListener("click", async (event) => {
+  const del = event.target.closest("[data-del]");
+  if (del) {
+    if (!confirm("Delete this review and its stored copy of the contract from this computer?")) return;
+    try {
+      await api("/api/contracts/" + del.dataset.del, { method: "DELETE" });
+      if (state.id === del.dataset.del) resetView();
+    } catch (e) { alert(e.message); }
+    loadHistory(); return;
+  }
+  const open = event.target.closest("[data-id]");
+  if (open) openContract(open.dataset.id);
+});
+
+/* ---------- choose / upload ---------- */
+const drop = $("drop"), fileInput = $("file");
+fileInput.addEventListener("change", () => choose(fileInput.files[0]));
+["dragenter", "dragover"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.add("drag"); }));
+["dragleave", "drop"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.remove("drag"); }));
+drop.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) choose(e.dataTransfer.files[0]); });
+function choose(file) {
+  if (!file) return;
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const limit = ((state.health && state.health.limits.max_upload_mb) || 100) * 1048576;
+  $("uploadError").textContent = "";
+  if (!["pdf", "docx", "txt"].includes(ext)) { state.file = null; $("picked").textContent = "That file type is not supported. Choose a PDF, DOCX or TXT file."; $("uploadBtn").disabled = true; return; }
+  if (file.size > limit) { state.file = null; $("picked").textContent = "That file is larger than " + Math.round(limit / 1048576) + " MB."; $("uploadBtn").disabled = true; return; }
+  state.file = file; $("picked").textContent = file.name + " (" + formatSize(file.size) + ")"; $("uploadBtn").disabled = false;
+}
+$("uploadBtn").addEventListener("click", async () => {
+  if (!state.file) return;
+  const form = new FormData();
+  form.append("file", state.file);
+  form.append("perspective", $("perspective").value);
+  if (!$("modelField").classList.contains("hidden") && $("model").value) form.append("model", $("model").value);
+  $("uploadBtn").disabled = true; $("uploadError").textContent = "";
+  try {
+    const data = await api("/api/contracts/upload", { method: "POST", body: form });
+    state.file = null; fileInput.value = ""; $("picked").textContent = "No file chosen.";
+    await openContract(data.contract_id);
+  } catch (e) {
+    $("uploadError").textContent = e.message; $("uploadBtn").disabled = !state.file;
+  }
+});
+$("refreshHealth").addEventListener("click", refreshHealth);
+
+/* ---------- open a contract and follow its progress ---------- */
+function resetView() {
+  clearTimeout(state.poll); state.id = null; state.report = null; state.answers = [];
+  history.replaceState(null, "", location.pathname); localStorage.removeItem("lexiguard.last");
+  $("docTitle").textContent = "No contract open"; $("docSub").textContent = "Choose a contract on the left to begin.";
+  ["badge", "progress", "actions", "tabs", "reviewPane", "askPane"].forEach((id) => $(id).classList.add("hidden"));
+  $("placeholder").classList.remove("hidden");
+}
+async function openContract(id) {
+  clearTimeout(state.poll);
+  state.id = id; state.report = null; state.answers = []; state.filter = "All"; state.query = "";
+  history.replaceState(null, "", "#c=" + id);
+  try { localStorage.setItem("lexiguard.last", id); } catch (e) { /* storage may be blocked */ }
+  $("placeholder").classList.add("hidden"); $("reviewPane").classList.add("hidden"); $("askPane").classList.add("hidden"); $("tabs").classList.add("hidden");
+  await pollStatus();
+  loadHistory();
+}
+async function pollStatus() {
+  const id = state.id; if (!id) return;
+  let s;
+  try { s = await api("/api/contracts/" + id + "/status"); }
+  catch (e) {
+    if (e.status === 404) { resetView(); loadHistory(); return; }
+    $("stage").textContent = e.message + " Retrying..."; $("progress").classList.remove("hidden");
+    state.poll = setTimeout(pollStatus, 3000); return;
+  }
+  if (id !== state.id) return;
+  state.status = s;
+  $("docTitle").textContent = s.filename;
+  const badge = $("badge");
+  badge.className = "badge " + s.status; badge.textContent = { queued: "Waiting", processing: "Working", completed: "Done", failed: "Failed", cancelled: "Cancelled" }[s.status] || s.status;
+  if (s.status === "queued" || s.status === "processing") {
+    $("docSub").innerHTML = "<span>" + (s.pages ? esc(s.pages) + " pages" : "Preparing") + "</span><span>You can keep this window open or come back later.</span>";
+    $("progress").classList.remove("hidden"); $("stage").textContent = s.stage || "Working"; $("percent").textContent = (s.progress || 0) + "%"; $("barFill").style.width = (s.progress || 0) + "%";
+    $("actions").innerHTML = '<button class="btn danger small" id="cancelBtn">Cancel analysis</button>'; $("actions").classList.remove("hidden");
+    $("cancelBtn").onclick = async () => { try { await api("/api/contracts/" + id + "/cancel", { method: "POST" }); } catch (e) { alert(e.message); } };
+    $("placeholder").classList.add("hidden");
+    state.poll = setTimeout(pollStatus, 1500); loadHistoryThrottled(); return;
+  }
+  $("progress").classList.add("hidden");
+  if (s.status === "completed") {
+    try { state.report = await api("/api/contracts/" + id + "/report"); } catch (e) { showFailure(e.message, id, false); return; }
+    renderReport(); loadHistory();
+    if (s.index_state === "pending" || s.index_state === "building") state.poll = setTimeout(refreshIndexNote, 2500);
+    return;
+  }
+  showFailure(s.error || "The analysis did not finish.", id, true, s.status);
+}
+let lastHistory = 0;
+function loadHistoryThrottled() { if (Date.now() - lastHistory > 6000) { lastHistory = Date.now(); loadHistory(); } }
+async function refreshIndexNote() {
+  if (!state.id) return;
+  try {
+    const s = await api("/api/contracts/" + state.id + "/status");
+    state.status = s; renderAskHint();
+    if (s.index_state === "pending" || s.index_state === "building") state.poll = setTimeout(refreshIndexNote, 2500);
+  } catch (e) { /* ignore */ }
+}
+function showFailure(message, id, canRetry, kind) {
+  const cancelled = kind === "cancelled";
+  $("docSub").textContent = cancelled ? "The analysis was cancelled." : "The analysis could not be completed.";
+  $("tabs").classList.add("hidden"); $("askPane").classList.add("hidden");
+  const pane = $("reviewPane"); pane.classList.remove("hidden");
+  pane.innerHTML = '<div class="notice ' + (cancelled ? "info" : "fail") + '"><p><b>' + (cancelled ? "Cancelled" : "What went wrong") + "</b></p><p>" + esc(message) + "</p></div>";
+  $("actions").innerHTML = (canRetry ? '<button class="btn small" id="retryBtn">Try again</button>' : "") + '<button class="btn quiet small" id="removeBtn">Delete</button>';
+  $("actions").classList.remove("hidden");
+  if (canRetry) $("retryBtn").onclick = async () => { try { await api("/api/contracts/" + id + "/retry", { method: "POST" }); await openContract(id); } catch (e) { pane.insertAdjacentHTML("afterbegin", '<div class="notice fail">' + esc(e.message) + "</div>"); } };
+  $("removeBtn").onclick = async () => { if (confirm("Delete this review?")) { try { await api("/api/contracts/" + id, { method: "DELETE" }); } catch (e) { alert(e.message); } resetView(); loadHistory(); } };
+  loadHistory();
+}
+
+/* ---------- report ---------- */
+function renderReport() {
+  const r = state.report; if (!r) return;
+  $("docTitle").textContent = r.filename;
+  const chunks = r.partial ? r.chunks_analyzed + " of " + r.analysis_chunks + " parts reviewed" : r.analysis_chunks + " " + (r.analysis_chunks === 1 ? "part" : "parts") + " reviewed";
+  $("docSub").innerHTML = "<span>" + esc(r.pages) + (r.page_kind === "approx" ? " estimated pages" : " pages") + "</span><span>" + esc(chunks) + "</span><span>Model " + esc(r.model) + "</span>";
+  $("actions").innerHTML = '<a class="btn" id="dl" href="/api/contracts/' + esc(r.contract_id) + '/report.json" download>Download JSON</a><button class="btn quiet" id="printBtn">Print or save as PDF</button>';
+  $("actions").classList.remove("hidden");
+  $("printBtn").onclick = printReport;
+  $("tabs").classList.remove("hidden");
+  selectTab("review");
+  const c = r.counts || {};
+  const findings = Array.isArray(r.findings) ? r.findings : [];
+  const notices = [];
+  if (r.partial) notices.push('<div class="notice warn"><p><b>Some parts could not be reviewed.</b> ' + esc(r.chunks_analyzed) + " of " + esc(r.analysis_chunks) + " parts were analysed, so this report may be missing findings. Use Try again from your reviews list or read the unreviewed parts yourself.</p></div>");
+  (r.extraction_notes || []).forEach((n) => notices.push('<div class="notice info">' + esc(n) + "</div>"));
+  const score = Number(r.risk_indicator) || 0;
+  $("reviewPane").innerHTML =
+    notices.join("") +
+    '<div class="meter-wrap"><div><div class="meter-title">Risk indicator<b>' + score + "</b>out of 100, " + esc((r.risk_label || "").toLowerCase()) + '</div><div class="meter" role="img" aria-label="Risk indicator ' + score + ' out of 100"><i style="left:' + Math.max(0, Math.min(100, score)) + '%"></i></div><div class="meter-scale"><span>Low</span><span>Moderate</span><span>Elevated</span><span>High</span></div></div>' +
+    '<div class="counts">' + LEVELS.map((l) => '<div class="count ' + l.toLowerCase() + '"><b>' + (c[l] || 0) + "</b>" + l + "</div>").join("") + "</div></div>" +
+    '<p class="note-small" style="margin:-14px 0 24px">' + esc(r.risk_indicator_note || "") + "</p>" +
+    '<section class="block"><h2>Summary</h2><p class="summary">' + esc(r.executive_summary) + "</p></section>" +
+    '<section class="block"><h2>Findings <span class="muted" id="findCount" style="font:14px var(--sans);color:var(--muted)"></span></h2>' +
+      '<div class="toolbar no-print"><div class="chips" id="chips"></div><input class="search" id="search" type="search" placeholder="Search findings" aria-label="Search findings"></div>' +
+      '<div id="findings"></div></section>' +
+    '<section class="block"><h2>Key obligations found</h2>' + listHtml(r.key_obligations) + "</section>" +
+    '<section class="block"><h2>Checklist for the human reviewer</h2>' + listHtml(r.reviewer_checklist) + "</section>" +
+    ((r.processing_notes || []).length ? '<section class="block"><h2>Processing notes</h2>' + listHtml(r.processing_notes) + "</section>" : "") +
+    '<div class="disclaimer"><b>Please note.</b> ' + esc(r.disclaimer) + "</div>";
+  renderChips(findings, c); renderFindings();
+  $("search").addEventListener("input", (e) => { state.query = e.target.value; renderFindings(); });
+  renderAsk();
+}
+function listHtml(items) {
+  if (!Array.isArray(items) || !items.length) return '<p class="empty-note">Nothing was generated for this section.</p>';
+  return '<ul class="list">' + items.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul>";
+}
+function renderChips(findings, counts) {
+  const items = [["All", findings.length]].concat(LEVELS.map((l) => [l, counts[l] || 0]));
+  $("chips").innerHTML = items.map(([name, n]) => '<button class="chip" data-level="' + name + '" aria-pressed="' + (state.filter === name) + '">' + name + " (" + n + ")</button>").join("");
+  $("chips").onclick = (e) => { const b = e.target.closest("[data-level]"); if (!b) return; state.filter = b.dataset.level; renderChips(findings, counts); renderFindings(); };
+}
+function renderFindings() {
+  const r = state.report; const all = r.findings || [];
+  const q = state.query.trim().toLowerCase();
+  const shown = all.filter((f) => (state.filter === "All" || f.risk_level === state.filter) &&
+    (!q || [f.title, f.category, f.evidence, f.explanation, f.recommendation].join(" ").toLowerCase().includes(q)));
+  $("findCount").textContent = shown.length === all.length ? "(" + all.length + ")" : "(" + shown.length + " of " + all.length + ")";
+  if (!all.length) { $("findings").innerHTML = '<div class="notice info">No findings were returned. That does <b>not</b> prove the contract is safe. Read it yourself or ask a lawyer.</div>'; return; }
+  if (!shown.length) { $("findings").innerHTML = '<p class="empty-note">No findings match this filter.</p>'; return; }
+  const limit = 150;
+  $("findings").innerHTML = shown.slice(0, limit).map((f, i) => {
+    const level = String(f.risk_level).toLowerCase();
+    return '<details class="finding ' + level + '"' + (i < 3 && f.risk_level === "High" ? " open" : "") + "><summary><div><div class=\"f-title\">" + esc(f.title) + '</div><div class="f-meta"><span>' + esc(f.category) + "</span><span>" + esc(pageLabel(f, r.page_kind)) + "</span><span>Severity " + esc(f.severity_score) + " of 5</span></div></div>" +
+      '<span class="level ' + level + '">' + esc(f.risk_level) + '</span></summary><div class="f-body"><h3>Quoted from the contract</h3><p class="quote"><span>' + esc(f.evidence) + '</span></p>' +
+      '<div class="f-cols"><div><h3>Why it may matter</h3><p>' + esc(f.explanation) + "</p></div><div><h3>What to ask or do</h3><p>" + esc(f.recommendation || "Review this wording with a qualified professional.") + "</p></div></div></div></details>";
+  }).join("") + (shown.length > limit ? '<p class="more empty-note">Showing the first ' + limit + " of " + shown.length + " findings. Use the filters or search to narrow them, or download the JSON for the full list.</p>" : "");
+}
+function printReport() {
+  const toRestore = [];
+  document.querySelectorAll("details.finding").forEach((d) => { if (!d.open) { d.open = true; toRestore.push(d); } });
+  window.print();
+  setTimeout(() => toRestore.forEach((d) => { d.open = false; }), 500);
+}
+
+/* ---------- tabs and Q&A ---------- */
+function selectTab(name) {
+  const ask = name === "ask";
+  $("tabReview").setAttribute("aria-selected", String(!ask)); $("tabAsk").setAttribute("aria-selected", String(ask));
+  $("reviewPane").classList.toggle("hidden", ask); $("askPane").classList.toggle("hidden", !ask);
+  $("placeholder").classList.add("hidden");
+}
+$("tabReview").onclick = () => selectTab("review");
+$("tabAsk").onclick = () => { selectTab("ask"); const t = $("question"); if (t) t.focus(); };
+function renderAsk() {
+  $("askPane").innerHTML =
+    '<div class="block"><h2>Ask about this contract</h2><p class="note-small" style="margin:0 0 12px" id="askHint"></p>' +
+    '<div class="ask-form"><label class="sr-only" for="question">Your question</label><textarea id="question" maxlength="1000" placeholder="For example: What happens if I cancel early? Who pays for damages?"></textarea>' +
+    '<div class="ask-actions"><button class="btn" id="askBtn">Ask</button><span class="error-text" id="askError" style="margin:0" role="alert"></span></div></div>' +
+    '<div id="qaList"></div></div>';
+  $("askBtn").onclick = ask;
+  $("question").addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") ask(); });
+  renderAskHint(); renderQa();
+}
+function renderAskHint() {
+  const el = $("askHint"); if (!el) return;
+  const s = state.status || {};
+  el.textContent = s.index_state === "ready" ? "Answers use only passages found in your contract, with page references. They are not legal advice."
+    : s.index_state === "building" || s.index_state === "pending" ? "Preparing smarter search in the background. You can already ask questions; keyword search is used until it is ready."
+    : (s.index_note || "Answers use only passages found in your contract. They are not legal advice.");
+}
+async function ask() {
+  const box = $("question"), q = box.value.trim();
+  if (q.length < 3 || state.asking) return;
+  state.asking = true; $("askBtn").disabled = true; $("askBtn").textContent = "Thinking..."; $("askError").textContent = "";
+  const id = state.id;
+  try {
+    const data = await api("/api/contracts/" + id + "/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
+    if (id !== state.id) return;
+    state.answers.unshift({ q, a: data.answer, sources: data.sources || [] }); box.value = ""; renderQa();
+  } catch (e) { if ($("askError")) $("askError").textContent = e.message; }
+  finally { state.asking = false; if ($("askBtn")) { $("askBtn").disabled = false; $("askBtn").textContent = "Ask"; } }
+}
+function renderQa() {
+  const list = $("qaList"); if (!list) return;
+  list.innerHTML = state.answers.map((x) => '<div class="qa"><div class="q">' + esc(x.q) + '</div><div class="a">' + esc(x.a) + "</div>" +
+    (x.sources.length ? "<details><summary>Passages used (" + x.sources.length + ")</summary>" + x.sources.map((s) => '<div class="src"><b>[' + esc(s.n) + "] " + (s.page_start === s.page_end ? "page " + esc(s.page_start) : "pages " + esc(s.page_start) + " to " + esc(s.page_end)) + "</b>" + esc(s.snippet) + "</div>").join("") + "</details>" : "") + "</div>").join("");
+}
+
+/* ---------- start ---------- */
+(async function init() {
+  await refreshHealth();
+  await loadHistory();
+  let id = null;
+  const m = location.hash.match(/^#c=([0-9a-f-]{36})$/i);
+  if (m) id = m[1]; else { try { id = localStorage.getItem("lexiguard.last"); } catch (e) { /* ignore */ } }
+  if (id) openContract(id);
+})();
+</script>
+</body>
+</html>
